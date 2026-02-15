@@ -24,3 +24,41 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.nv-bar {
+  display: flex;
+  width: 100%;
+  color: white;
+  padding: 15px 15px 15px 20px;
+  background: #31c07d;  
+}
+
+#todoInput {
+  width: 90%;
+  border: 1px solid #868686;
+  border-radius: 5px;
+  margin: 10px;
+  padding: 5px 15px;
+}
+
+#addTodoBtn {
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  background: #767676;
+  color: white;
+}
+
+#addTodoBtn:hover {
+  background: #0c7544;
+}
+
+#toddList {
+  padding: 0 10px;
+  width: 100%;
+}
+
+#toddList>li{
+  padding: 8px 0;
+  border-bottom: 1px solid #868686;
+}
