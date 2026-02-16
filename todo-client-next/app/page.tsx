@@ -38,6 +38,7 @@ export default function Home() {
 
   async function toggleTodo(id:number){
     if (!id) return;
+
     await fetch('http://localhost:3000/todo/'+id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' }
@@ -46,6 +47,17 @@ export default function Home() {
     setcompleted(true);
     fetchTodos();
   };
+
+  async function removeTodo(id:number){
+    if (!id) return;
+
+    await fetch('http://localhost:3000/todo/'+id, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    fetchTodos();
+  }
 
   return (
     <div>
@@ -61,7 +73,7 @@ export default function Home() {
       <ul id="toddList">
         {todos.map((todo) => (
           <li id={"todo"+todo.id} key={todo.id}>
-            <input id={"checkbox"+todo.id} type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} /> {todo.title} 
+            <input id={"checkbox"+todo.id} type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} /> {todo.title} <button className="remove-todo-btn" onClick={() => removeTodo(todo.id)}>삭제</button>
           </li>
         ))}
       </ul>

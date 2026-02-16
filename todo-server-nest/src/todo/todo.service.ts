@@ -22,4 +22,15 @@ export class TodoService {
     delete(id: number) {
         return this.todoRepository.delete(id);
     }
+
+    async update(id: number) {
+        const todo = await this.todoRepository.findOneBy({ id });
+        if (!todo) {
+            throw new Error('Todo not found');
+        }
+
+        todo.completed = !todo.completed;
+
+        return this.todoRepository.save(todo);
+    }
 }

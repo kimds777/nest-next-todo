@@ -59,6 +59,12 @@ body {
 }
 
 #toddList>li{
+  display: flex;
+  gap: 5px;
   padding: 8px 0;
   border-bottom: 1px solid #868686;
+}
+
+.remove-todo-btn {
+  margin-left: auto;
 }
