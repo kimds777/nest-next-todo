@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Patch, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Patch, Body, Param, Query } from '@nestjs/common';
 import { TodoService } from './todo.service';
 
 @Controller('todo')
@@ -6,7 +6,15 @@ export class TodoController {
     constructor(private readonly todoService: TodoService) {}
 
     @Get()
-    findAll() {
+    findAll(@Query('completed') completed?: string) {
+        if (completed === 'true') {
+            return this.todoService.findByCompleted(true);
+        }
+
+        if (completed === 'false') {
+            return this.todoService.findByCompleted(false);
+        }
+
         return this.todoService.findAll();
     }
 
@@ -24,4 +32,5 @@ export class TodoController {
     update(@Param('id') id: string) {
         return this.todoService.update(Number(id));
     }
+
 }

@@ -12,13 +12,29 @@ export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [title, setTitle] = useState('');
   const [completed, setcompleted] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'true' | 'false'>('all');
 
-  const fetchTodos = async () => {
-    const res = await fetch('http://localhost:3000/todo')
-    const data = await res.json()
-    setTodos(data)
+  // todo 목록 조회
+  // todo 완료, 미완료 조회
+  const fetchTodos = async (completed?:string) => {
+    let url = !completed ? 'http://localhost:3000/todo' : 'http://localhost:3000/todo?completed='+completed;
+    const res = await fetch(url);
+    const data = await res.json();
+    setTodos(data);
   };
 
+  // filter 버튼 처리
+  const handleFilter = (value: 'all' | 'true' | 'false') => {
+  setFilter(value)
+
+  if (value === 'all') {
+    fetchTodos()
+  } else {
+    fetchTodos(value)
+  }
+}
+
+  // todo 등록
   const addTodo = async () => {
     if (!title) return;
 
@@ -33,9 +49,11 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetchTodos();
+    //fetchTodos();
+    handleFilter('all');
   }, []);
 
+  // todo 완료여부 수정
   async function toggleTodo(id:number){
     if (!id) return;
 
@@ -48,6 +66,7 @@ export default function Home() {
     fetchTodos();
   };
 
+  // todo 삭제
   async function removeTodo(id:number){
     if (!id) return;
 
@@ -59,6 +78,10 @@ export default function Home() {
     fetchTodos();
   }
 
+
+  // 페이지네이션 개발
+  // 회원가입, 로그인(JWT활용) 개발
+
   return (
     <div>
       <h1 className="nv-bar">TODO APP</h1>
@@ -69,6 +92,12 @@ export default function Home() {
         placeholder="할 일 입력"
       />
       <button id="addTodoBtn" onClick={addTodo}>추가</button>
+
+      <div style={{padding:'0 10px',display:'flex'}}>
+        <button className={`completed-filter ${filter === 'all' ? 'active' : ''}`} onClick={()=>handleFilter('all')}>전체</button>
+        <button className={`completed-filter ${filter === 'true' ? 'active' : ''}`} onClick={()=>handleFilter('true')}>완료</button>
+        <button className={`completed-filter ${filter === 'false' ? 'active' : ''}`} onClick={()=>handleFilter('false')}>미완료</button>
+      </div>
 
       <ul id="toddList">
         {todos.map((todo) => (

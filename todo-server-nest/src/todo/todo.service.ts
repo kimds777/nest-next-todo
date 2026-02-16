@@ -35,4 +35,8 @@ export class TodoService {
 
         return this.todoRepository.save(todo);
     }
+
+    async findByCompleted(completed: boolean) {
+        return this.todoRepository.findBy({completed});
+    }
 }

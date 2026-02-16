@@ -68,3 +68,20 @@ body {
 .remove-todo-btn {
   margin-left: auto;
 }
+
+.completed-filter {
+  flex: 1; 
+  padding: 5px 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.completed-filter:hover {
+  background: #e4fef1;
+}
+
+.completed-filter.active {
+  background: #31c07d;
+  font-weight: bold;
+  color: white;
+}
