@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Todo } from './todo.entity';
+import { Transactional } from 'typeorm-transactional';
 
 @Injectable()
 export class TodoService {
@@ -23,6 +24,7 @@ export class TodoService {
         return this.todoRepository.delete(id);
     }
 
+    @Transactional()
     async update(id: number) {
         const todo = await this.todoRepository.findOneBy({ id });
         if (!todo) {
