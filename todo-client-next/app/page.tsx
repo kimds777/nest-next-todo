@@ -57,13 +57,20 @@ export default function Home() {
   async function toggleTodo(id:number){
     if (!id) return;
 
+    // 완료여부 낙관적 업데이트 처리
+    setTodos(prev =>
+      prev.map(todo =>
+        todo.id === id
+          ? { ...todo, completed: !todo.completed }
+          : todo
+      )
+    )
+
     await fetch('http://localhost:3000/todo/'+id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' }
     });
 
-    setcompleted(true);
-    fetchTodos();
   };
 
   // todo 삭제
