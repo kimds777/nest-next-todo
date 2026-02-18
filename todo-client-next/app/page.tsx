@@ -13,13 +13,26 @@ export default function Home() {
   const [title, setTitle] = useState('');
   const [completed, setcompleted] = useState(false);
   const [filter, setFilter] = useState<'all' | 'true' | 'false'>('all');
+  const [searchWord, setSearchWord] = useState('');
 
   // todo 목록 조회
   // todo 완료, 미완료 조회
-  const fetchTodos = async (completed?:string) => {
-    let url = !completed ? 'http://localhost:3000/todo' : 'http://localhost:3000/todo?completed='+completed;
+  const fetchTodos = async (completed?:string, searchWord?:string) => {
+    let url = 'http://localhost:3000/todo?'
+
+    if (completed && completed !== 'all') {
+      url += `completed=${completed}&`
+    }
+
+    if (searchWord) {
+      url += `searchWord=${searchWord}`
+    }
+
+    console.log('fetchTodos url==>',url);
+
     const res = await fetch(url);
     const data = await res.json();
+    console.log('fetchTodos data==>',data);
     setTodos(data);
   };
 
@@ -91,7 +104,12 @@ export default function Home() {
 
   return (
     <div>
-      <h1 className="nv-bar">TODO APP</h1>
+      <div className="nv-bar">
+        <h1 style={{fontWeight:'bold', fontSize:'larger'}}>TODO APP</h1>
+        <input type="text" id="searchWord" value={searchWord} onChange={(e) => setSearchWord(e.target.value)} placeholder="검색어를 입력해주세요." />
+        <button id="searchBtn" onClick={()=>fetchTodos(filter, searchWord)}>검색</button>
+      </div>
+      
 
       <input type="text" id="todoInput"
         value={title}

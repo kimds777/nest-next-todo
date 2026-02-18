@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like } from 'typeorm';
 import { Todo } from './todo.entity';
 import { Transactional } from 'typeorm-transactional';
 
@@ -36,7 +36,21 @@ export class TodoService {
         return this.todoRepository.save(todo);
     }
 
-    async findByCompleted(completed: boolean) {
-        return this.todoRepository.findBy({completed});
+    async findWithFilter(completed?: string, searchWord?: string) {
+        const qb = this.todoRepository.createQueryBuilder('todo');
+
+        if (completed) {
+            qb.andWhere('todo.completed = :completed', {
+                completed: completed === 'true',
+            });
+        }
+
+        if (searchWord) {
+            qb.andWhere('todo.title LIKE :searchWord', {
+                searchWord: `%${searchWord}%`,
+            });
+        }
+
+        return qb.getMany();
     }
 }

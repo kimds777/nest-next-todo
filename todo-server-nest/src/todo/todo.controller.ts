@@ -6,16 +6,8 @@ export class TodoController {
     constructor(private readonly todoService: TodoService) {}
 
     @Get()
-    findAll(@Query('completed') completed?: string) {
-        if (completed === 'true') {
-            return this.todoService.findByCompleted(true);
-        }
-
-        if (completed === 'false') {
-            return this.todoService.findByCompleted(false);
-        }
-
-        return this.todoService.findAll();
+    findAll(@Query('completed') completed?: string, @Query('searchWord') searchWord?: string) {
+        return this.todoService.findWithFilter(completed, searchWord);
     }
 
     @Post()
