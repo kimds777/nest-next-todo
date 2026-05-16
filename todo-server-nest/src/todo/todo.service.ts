@@ -6,51 +6,63 @@ import { Transactional } from 'typeorm-transactional';
 
 @Injectable()
 export class TodoService {
-    constructor(
-        @InjectRepository(Todo)
-        private todoRepository: Repository<Todo>,
-    ) {}
+  constructor(
+    @InjectRepository(Todo)
+    private todoRepository: Repository<Todo>,
+  ) {}
 
-    findAll() {
-        return this.todoRepository.find();
+  findAll() {
+    return this.todoRepository.find();
+  }
+
+  create(title: string) {
+    const todo = this.todoRepository.create({ title });
+    return this.todoRepository.save(todo);
+  }
+
+  delete(id: number) {
+    return this.todoRepository.delete(id);
+  }
+
+  @Transactional()
+  async updateCompleted(id: number) {
+    const todo = await this.todoRepository.findOneBy({ id });
+    if (!todo) {
+      throw new Error('Todo not found');
     }
 
-    create(title: string) {
-        const todo = this.todoRepository.create({ title });
-        return this.todoRepository.save(todo);
+    todo.completed = !todo.completed;
+
+    return this.todoRepository.save(todo);
+  }
+
+  async findWithFilter(completed?: string, searchWord?: string) {
+    const qb = this.todoRepository.createQueryBuilder('todo');
+
+    if (completed) {
+      qb.andWhere('todo.completed = :completed', {
+        completed: completed === 'true',
+      });
     }
 
-    delete(id: number) {
-        return this.todoRepository.delete(id);
+    if (searchWord) {
+      qb.andWhere('todo.title LIKE :searchWord', {
+        searchWord: `%${searchWord}%`,
+      });
     }
 
-    @Transactional()
-    async update(id: number) {
-        const todo = await this.todoRepository.findOneBy({ id });
-        if (!todo) {
-            throw new Error('Todo not found');
-        }
+    return qb.getMany();
+  }
 
-        todo.completed = !todo.completed;
-
-        return this.todoRepository.save(todo);
+  @Transactional()
+  async updateTodo(id: number, title: string) {
+    const todo = await this.todoRepository.findOneBy({ id });
+    if (!todo) {
+      throw new Error('Todo not found');
     }
 
-    async findWithFilter(completed?: string, searchWord?: string) {
-        const qb = this.todoRepository.createQueryBuilder('todo');
+    todo.title = title;
 
-        if (completed) {
-            qb.andWhere('todo.completed = :completed', {
-                completed: completed === 'true',
-            });
-        }
-
-        if (searchWord) {
-            qb.andWhere('todo.title LIKE :searchWord', {
-                searchWord: `%${searchWord}%`,
-            });
-        }
-
-        return qb.getMany();
-    }
+    return this.todoRepository.save(todo);
+  }
 }

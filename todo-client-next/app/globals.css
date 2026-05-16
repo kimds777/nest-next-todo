@@ -34,6 +34,10 @@ body {
   align-items: center;
 }
 
+.hide {
+  display: none;
+}
+
 #todoInput {
   width: 90%;
   border: 1px solid #868686;
@@ -63,10 +67,10 @@ body {
   display: flex;
   gap: 5px;
   padding: 8px 0;
-  border-bottom: 1px solid #868686;
+  border-bottom: 1px solid #cecece;
 }
 
-.remove-todo-btn {
+.btn-container {
   margin-left: auto;
 }
 
