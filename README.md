@@ -68,7 +68,7 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
   
 ## 주요 기능
 
-<img width="953" height="561" alt="image" src="https://github.com/user-attachments/assets/3957d73b-635d-47de-9fe1-70db8e9dec2b" />
+<img width="953" height="307" alt="image" src="https://github.com/user-attachments/assets/a6ca76b2-892d-408d-8a72-42a18a65b76f" />
 
 - **Todo CRUD**: 등록·수정·삭제 및 완료/미완료 상태 변경
 - **키워드 검색**: LIKE 검색 기반 제목 검색
