@@ -72,17 +72,33 @@ export default function Home() {
   async function toggleTodo(id: number) {
     if (!id) return;
 
+    // 변경하기 전 상태를 저장
+    const previousTodos = todos;
+
     // 완료여부 낙관적 업데이트 처리
     setTodos((prev) =>
       prev.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo,
+      ),
     );
 
-    await fetch("http://localhost:3000/todo/" + id, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-    });
+    try {
+      // 서버에 변경 요청
+      const response = await fetch("http://localhost:3000/todo/" + id, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      // HTTP 요청 자체가 실패한 경우
+      if (!response.ok) {
+        throw new Error("Todo 완료여부 수정 실패");
+      }
+    } catch (error) {
+      // 서버 요청 실패 → 이전 상태로 롤백
+      setTodos(previousTodos);
+
+      console.error("Todo 완료여부 수정 실패:", error);
+    }
   }
 
   // todo 삭제
