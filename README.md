@@ -1,4 +1,4 @@
-# Todo 관리 웹 애플리케이션(작성중)
+# Todo 관리 웹 애플리케이션
  
 NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관리 웹 애플리케이션입니다.
 실무에서 다루기 어려웠던 프론트-백엔드 통신 구조와 에러 응답 설계를 직접 처음부터 끝까지 설계해보기 위해 시작했습니다.
@@ -90,7 +90,8 @@ Todo 목록 조회
 | --- | --- | --- | --- |
 | keyword | string | N | 제목 검색 키워드 (LIKE 검색) |
 | isDone | boolean | N | 완료 상태 필터 |
- 
+
+  
 ### POST /todos
 Todo 등록
  
@@ -99,7 +100,8 @@ Todo 등록
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
 | title | string | Y | 할 일 제목 |
- 
+
+  
 ### PATCH /todos/:id
 Todo 수정 (완료 상태 변경 포함)
  
@@ -115,7 +117,8 @@ Todo 수정 (완료 상태 변경 포함)
 | --- | --- | --- | --- |
 | title | string | N | 수정할 제목 |
 | isDone | boolean | N | 수정할 완료 상태 |
- 
+
+   
 ### DELETE /todos/:id
 Todo 삭제
  
@@ -141,7 +144,7 @@ Todo 삭제
 
 
   
-### NestJS 계층 구조로 관심사를 분리한 경험
+<!-- NestJS 계층 구조로 관심사를 분리한 경험 -->
 <!-- Controller-Service-Module 구조를 적용하며 얻은 인사이트 -->
 
 
