@@ -16,6 +16,8 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 - [트러블슈팅 / 기술적 의사결정](#트러블슈팅--기술적-의사결정)
 - [실행 방법](#실행-방법)
 - [폴더 구조](#폴더-구조)
+
+
 ## 기술 스택
  
 | 구분 | 기술 |
@@ -24,7 +26,8 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 | Database | SQLite (with TypeORM) |
 | Frontend | Next.js |
 | Tool | Git, VS Code |
- 
+
+
 ## 아키텍처
  
 <!-- 프론트-백엔드 요청/응답 흐름과 Controller-Service-Module 계층 구조도를 삽입하세요 -->
@@ -42,7 +45,8 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
       ▼
 [TypeORM] ──▶ [SQLite]
 ```
- 
+
+
 ## ERD
  
 <!-- Todo 테이블 구조(필드, 타입, 관계)를 표 또는 다이어그램으로 정리하세요 -->
@@ -53,7 +57,8 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 | title | string | 할 일 제목 |
 | isDone | boolean | 완료 여부 |
 | createdAt | datetime | 생성일시 |
- 
+
+
 ## 주요 기능
  
 - **Todo CRUD**: 등록·수정·삭제 및 완료/미완료 상태 변경
@@ -61,7 +66,8 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 - **필터링**: 완료 상태별 목록 필터링
 - **Optimistic UI**: 클라이언트에서 즉시 반영 후, 실패 시 롤백되는 에러 응답 구조
 <!-- 각 기능별 스크린샷을 추가하면 좋습니다 -->
- 
+
+
 ## API 명세
  
 | Method | Endpoint | 설명 |
@@ -72,18 +78,23 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 | DELETE | `/todos/:id` | Todo 삭제 |
  
 <!-- 요청/응답 예시(JSON)를 추가하면 좋습니다. Swagger 적용 시 링크로 대체 가능 -->
- 
+
+
 ## 트러블슈팅 / 기술적 의사결정
- 
+
+
 ### 왜 SQLite를 선택했는가
 <!-- 예: 개인 프로젝트 규모에서 별도 DB 서버 설치 없이 빠르게 개발/배포하기 위해 선택했다는 식으로 서술 -->
- 
+
+
 ### Optimistic UI의 에러 응답 구조 설계
 <!-- 예: 클라이언트에서 먼저 상태를 반영한 뒤, 서버 응답 실패 시 이전 상태로 롤백하는 구조를 어떻게 설계했는지 -->
- 
+
+
 ### NestJS 계층 구조로 관심사를 분리한 경험
 <!-- Controller-Service-Module 구조를 적용하며 얻은 인사이트 -->
- 
+
+
 ## 실행 방법
  
 ```bash
@@ -100,9 +111,10 @@ cd frontend
 npm install
 npm run dev
 ```
- 
+
 환경변수 설정이 필요한 경우 `.env.example`을 참고해 `.env` 파일을 생성하세요.
- 
+
+
 ## 폴더 구조
  
 ```
