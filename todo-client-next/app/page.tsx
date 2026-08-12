@@ -115,18 +115,40 @@ export default function Home() {
 
   // todo 수정
   async function editTodo(id: number) {
-    if (!id) return;
-    if (!editTitle) return;
+    if (!id || !editTitle.trim()) return;
 
-    await fetch("http://localhost:3000/todo/", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: id, title: editTitle }),
-    });
+    // 변경하기 전 상태를 저장
+    const previousTodos = todos;
+
+    // 낙관적 업데이트
+    setTodos((prevTodos) =>
+      prevTodos.map((todo) =>
+        todo.id === id ? { ...todo, title: editTitle } : todo,
+      ),
+    );
+
+    try {
+      // 서버에 변경 요청
+      const response = await fetch("http://localhost:3000/todo/", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: id, title: editTitle }),
+      });
+
+      // HTTP 요청 자체가 실패한 경우
+      if (!response.ok) {
+        throw new Error("Todo 제목 수정 실패");
+      }
+    } catch (error) {
+      // 서버 요청 실패 → 이전 상태로 롤백
+      setTodos(previousTodos);
+
+      console.error("Todo 제목 수정 실패:", error);
+    }
 
     setEditingId(null);
     setEditTitle("");
-    fetchTodos(filter, searchWord);
+    //fetchTodos(filter, searchWord);
   }
 
   // todo수정 개발
