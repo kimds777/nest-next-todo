@@ -98,6 +98,7 @@ export default function Home() {
       setTodos(previousTodos);
 
       console.error("Todo 완료여부 수정 실패:", error);
+      alert("Todo 완료여부 수정에 실패했습니다.");
     }
   }
 
@@ -105,12 +106,30 @@ export default function Home() {
   async function removeTodo(id: number) {
     if (!id) return;
 
-    await fetch("http://localhost:3000/todo/" + id, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-    });
+    // 삭제하기 전 상태 저장
+    const previousTodos = todos;
 
-    fetchTodos();
+    // 낙관적 업데이트
+    setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
+
+    try {
+      const response = await fetch("http://localhost:3000/todo/" + id, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      // HTTP 에러 처리
+      if (!response.ok) {
+        throw new Error("Todo 삭제 실패");
+      }
+    } catch (error) {
+      console.error("Todo 삭제 실패:", error);
+
+      // 롤백
+      setTodos(previousTodos);
+
+      alert("Todo 삭제에 실패했습니다.");
+    }
   }
 
   // todo 수정
@@ -144,11 +163,11 @@ export default function Home() {
       setTodos(previousTodos);
 
       console.error("Todo 제목 수정 실패:", error);
+      alert("Todo 제목 수정에 실패했습니다.");
     }
 
     setEditingId(null);
     setEditTitle("");
-    //fetchTodos(filter, searchWord);
   }
 
   // todo수정 개발
