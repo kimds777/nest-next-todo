@@ -16,6 +16,7 @@ export default function Home() {
   const [searchWord, setSearchWord] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
+  const [page, setPage] = useState(1);
 
   // todo 목록 조회
   // todo 완료, 미완료 조회
@@ -249,7 +250,7 @@ export default function Home() {
               />
 
               <div
-                className={`${isCurrentEditing ? "hide" : ""} 'btn-container'`}
+                className={`${isCurrentEditing ? "hide" : ""} btn-container`}
               >
                 <button
                   className="edit-todo-btn"
@@ -270,7 +271,7 @@ export default function Home() {
               </div>
 
               <div
-                className={`${isCurrentEditing ? "" : "hide"} 'btn-container'`}
+                className={`${isCurrentEditing ? "" : "hide"} btn-container`}
               >
                 <button
                   className="apply-edit-btn"
@@ -293,6 +294,69 @@ export default function Home() {
           );
         })}
       </ul>
+
+      <div className="pagination">
+        <button
+          className="paginationButton"
+          onClick={() => setPage(1)}
+          disabled={page === 1}
+        >
+          «
+        </button>
+        <button
+          className="paginationButton"
+          onClick={() => setPage(page - 1)}
+          disabled={page === 1}
+        >
+          ‹
+        </button>
+
+        <button
+          className={`${page === 1 ? "active" : ""} paginationButton`}
+          onClick={() => setPage(1)}
+        >
+          1
+        </button>
+        <button
+          className={`${page === 2 ? "active" : ""} paginationButton`}
+          onClick={() => setPage(2)}
+        >
+          2
+        </button>
+        <button
+          className={`${page === 3 ? "active" : ""} paginationButton`}
+          onClick={() => setPage(3)}
+        >
+          3
+        </button>
+        <button
+          className={`${page === 4 ? "active" : ""} paginationButton`}
+          onClick={() => setPage(4)}
+        >
+          4
+        </button>
+        <button
+          className={`${page === 5 ? "active" : ""} paginationButton`}
+          onClick={() => setPage(5)}
+        >
+          5
+        </button>
+
+        <button
+          className="paginationButton"
+          onClick={() => setPage(page + 1)}
+          disabled={page === 5}
+        >
+          ›
+        </button>
+        <button
+          className="paginationButton"
+          onClick={() => setPage(5)}
+          disabled={page === 5}
+        >
+          »
+        </button>
+      </div>
     </div>
   );
 }
