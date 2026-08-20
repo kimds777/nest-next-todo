@@ -17,26 +17,41 @@ export default function Home() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const limit = 10;
+  const totalPages = Math.ceil(total / limit);
+  const maxPageButtons = 5;
+
+  // 화면에 보여줄 페이지 번호의 시작
+  const startPage =
+    Math.floor((page - 1) / maxPageButtons) * maxPageButtons + 1;
+
+  // 화면에 보여줄 페이지 번호의 마지막
+  const endPage = Math.min(startPage + maxPageButtons - 1, totalPages);
 
   // todo 목록 조회
   // todo 완료, 미완료 조회
   const fetchTodos = async (completed?: string, searchWord?: string) => {
-    let url = "http://localhost:3000/todo?";
+    let url = `http://localhost:3000/todo?page=${page}&limit=${limit}`;
 
     if (completed && completed !== "all") {
       url += `completed=${completed}&`;
     }
 
     if (searchWord) {
+      if (!completed || completed == "all") url += "&";
       url += `searchWord=${searchWord}`;
     }
 
     console.log("fetchTodos url==>", url);
 
     const res = await fetch(url);
-    const data = await res.json();
-    console.log("fetchTodos data==>", data);
-    setTodos(data);
+    const result = await res.json();
+    console.log("fetchTodos result==>", result);
+
+    setTodos(result.data);
+    setTotal(result.total);
   };
 
   // filter 버튼 처리
@@ -68,6 +83,10 @@ export default function Home() {
     //fetchTodos();
     handleFilter("all");
   }, []);
+
+  useEffect(() => {
+    fetchTodos();
+  }, [page]);
 
   // todo 완료여부 수정
   async function toggleTodo(id: number) {
@@ -311,6 +330,40 @@ export default function Home() {
           ‹
         </button>
 
+        {Array.from(
+          {
+            length: endPage - startPage + 1,
+          },
+          (_, index) => startPage + index,
+        ).map((pageNumber) => (
+          <button
+            key={pageNumber}
+            className={`${
+              page === pageNumber ? "active" : ""
+            } paginationButton`}
+            onClick={() => setPage(pageNumber)}
+          >
+            {pageNumber}
+          </button>
+        ))}
+
+        <button
+          className="paginationButton"
+          onClick={() => setPage(page + 1)}
+          disabled={page === totalPages}
+        >
+          ›
+        </button>
+        <button
+          className="paginationButton"
+          onClick={() => setPage(totalPages)}
+          disabled={page === totalPages}
+        >
+          »
+        </button>
+
+        {/* 
+
         <button
           className={`${page === 1 ? "active" : ""} paginationButton`}
           onClick={() => setPage(1)}
@@ -342,20 +395,7 @@ export default function Home() {
           5
         </button>
 
-        <button
-          className="paginationButton"
-          onClick={() => setPage(page + 1)}
-          disabled={page === 5}
-        >
-          ›
-        </button>
-        <button
-          className="paginationButton"
-          onClick={() => setPage(5)}
-          disabled={page === 5}
-        >
-          »
-        </button>
+         */}
       </div>
     </div>
   );

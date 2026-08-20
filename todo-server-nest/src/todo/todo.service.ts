@@ -36,7 +36,12 @@ export class TodoService {
     return this.todoRepository.save(todo);
   }
 
-  async findWithFilter(completed?: string, searchWord?: string) {
+  async findWithFilter(
+    page: number,
+    limit: number,
+    completed?: string,
+    searchWord?: string,
+  ) {
     const qb = this.todoRepository.createQueryBuilder('todo');
 
     if (completed) {
@@ -51,7 +56,19 @@ export class TodoService {
       });
     }
 
-    return qb.getMany();
+    // 페이지네이션
+    const skip = (page - 1) * limit;
+
+    qb.skip(skip).take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+    };
   }
 
   @Transactional()
