@@ -64,31 +64,23 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 | isDone | boolean | 완료 여부 |
 | createdAt | datetime | 생성일시 |
 
-
+  
+  <br>
   
 ## 주요 기능
 
-<img width="953" height="307" alt="image" src="https://github.com/user-attachments/assets/a6ca76b2-892d-408d-8a72-42a18a65b76f" />
+<img width="956" height="690" alt="image" src="https://github.com/user-attachments/assets/c0100908-578a-4910-83d3-64e575a1a53a" />
+
 
 - **Todo CRUD**: 등록·수정·삭제 및 완료/미완료 상태 변경
 - **키워드 검색**: LIKE 검색 기반 제목 검색
 - **필터링**: 완료 상태별 목록 필터링
 - **Optimistic UI**: 클라이언트에서 즉시 반영 후, 실패 시 롤백되는 에러 응답 구조
+- **페이지네이션**: 서버 사이드 페이지네이션 적용 page, limit 기반으로 필요한 Todo 데이터만 조회, 전체 데이터 개수에 따라 페이지 버튼을 동적으로 생성
+- **정렬**: Todo 정렬 기준(최신순, 오래된순, 제목순)을 선택할 수 있는 정렬 UI 구현 
+
   
-
-
   <br>
-<img width="954" height="649" alt="image" src="https://github.com/user-attachments/assets/df71fbed-7642-436f-a955-bfea392340ff" />
-
-- **페이지네이션**
-- 서버 사이드 페이지네이션을 적용하여 페이지별 Todo 데이터만 조회
-- page, limit 기반으로 DB 조회 범위를 제한하여 불필요한 데이터 조회 방지
-- 전체 데이터 개수(total)를 기반으로 페이지 버튼을 동적으로 생성
-- 최대 5개의 페이지 번호를 표시하고 페이지 그룹 단위로 이동 가능
-- 페이지 변경 시 useEffect를 통해 해당 페이지 데이터를 자동 조회
-
-
-  
 ## API 명세
  
 <!-- 요청/응답 예시(JSON)를 추가하면 좋습니다. Swagger 적용 시 링크로 대체 가능 -->
