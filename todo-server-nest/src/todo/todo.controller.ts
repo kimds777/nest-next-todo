@@ -21,7 +21,12 @@ export class TodoController {
     @Query('completed') completed?: string,
     @Query('searchWord') searchWord?: string,
   ) {
-    return this.todoService.findWithFilter(page, limit, completed, searchWord);
+    return this.todoService.findWithFilter(
+      Number(page),
+      Number(limit),
+      completed,
+      searchWord,
+    );
   }
 
   @Post()

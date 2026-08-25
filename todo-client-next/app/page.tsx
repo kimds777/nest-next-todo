@@ -18,6 +18,7 @@ export default function Home() {
   const [editTitle, setEditTitle] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [sort, setSort] = useState("latest");
 
   const limit = 10;
   const totalPages = Math.ceil(total / limit);
@@ -33,17 +34,19 @@ export default function Home() {
   // todo 목록 조회
   // todo 완료, 미완료 조회
   const fetchTodos = async (completed?: string, searchWord?: string) => {
-    let url = `http://localhost:3000/todo?page=${page}&limit=${limit}`;
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("limit", String(limit));
 
     if (completed && completed !== "all") {
-      url += `completed=${completed}&`;
+      params.set("completed", completed);
     }
 
     if (searchWord) {
-      if (!completed || completed == "all") url += "&";
-      url += `searchWord=${searchWord}`;
+      params.set("searchWord", searchWord);
     }
 
+    const url = `http://localhost:3000/todo?${params.toString()}`;
     console.log("fetchTodos url==>", url);
 
     const res = await fetch(url);
@@ -221,25 +224,43 @@ export default function Home() {
         추가
       </button>
 
-      <div style={{ padding: "0 10px", display: "flex" }}>
-        <button
-          className={`completed-filter ${filter === "all" ? "active" : ""}`}
-          onClick={() => handleFilter("all")}
-        >
-          전체
-        </button>
-        <button
-          className={`completed-filter ${filter === "true" ? "active" : ""}`}
-          onClick={() => handleFilter("true")}
-        >
-          완료
-        </button>
-        <button
-          className={`completed-filter ${filter === "false" ? "active" : ""}`}
-          onClick={() => handleFilter("false")}
-        >
-          미완료
-        </button>
+      <div id="tabContainer">
+        <div id="completedFilterContainer">
+          <button
+            className={`completed-filter ${filter === "all" ? "active" : ""}`}
+            onClick={() => handleFilter("all")}
+          >
+            전체
+          </button>
+          <button
+            className={`completed-filter ${filter === "true" ? "active" : ""}`}
+            onClick={() => handleFilter("true")}
+          >
+            완료
+          </button>
+          <button
+            className={`completed-filter ${filter === "false" ? "active" : ""}`}
+            onClick={() => handleFilter("false")}
+          >
+            미완료
+          </button>
+        </div>
+
+        <div className="sort-container">
+          <label htmlFor="sort">정렬</label>
+
+          <select
+            id="sort"
+            className="sort-select"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
+            <option value="latest">최신순</option>
+            <option value="oldest">오래된순</option>
+            <option value="titleAsc">제목 오름차순</option>
+            <option value="titleDesc">제목 내림차순</option>
+          </select>
+        </div>
       </div>
 
       <ul id="toddList">
