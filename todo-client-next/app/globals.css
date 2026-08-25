@@ -38,15 +38,21 @@ body {
   display: none;
 }
 
+#inputContainer {
+  display: flex;
+  gap: 5px;
+  margin: 10px 10px 20px 10px;
+}
+
 #todoInput {
-  width: 90%;
+  flex: 9;
   border: 1px solid #868686;
   border-radius: 5px;
-  margin: 10px;
   padding: 5px 15px;
 }
 
 #addTodoBtn {
+  flex: 1;
   padding: 5px 10px;
   border-radius: 5px;
   cursor: pointer;
@@ -78,6 +84,7 @@ body {
   padding: 0 10px;
   display: flex;
   justify-content: space-between;
+  margin-bottom: 20px;
 }
 
 #completedFilterContainer {

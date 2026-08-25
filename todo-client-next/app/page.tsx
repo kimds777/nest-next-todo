@@ -213,16 +213,18 @@ export default function Home() {
         </button>
       </div>
 
-      <input
-        type="text"
-        id="todoInput"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="할 일 입력"
-      />
-      <button id="addTodoBtn" onClick={addTodo}>
-        추가
-      </button>
+      <div id="inputContainer">
+        <input
+          type="text"
+          id="todoInput"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="할 일 입력"
+        />
+        <button id="addTodoBtn" onClick={addTodo}>
+          추가
+        </button>
+      </div>
 
       <div id="tabContainer">
         <div id="completedFilterContainer">
