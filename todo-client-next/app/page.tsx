@@ -18,11 +18,14 @@ export default function Home() {
   const [editTitle, setEditTitle] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [sort, setSort] = useState("latest");
+  const [sortName, setSortName] = useState("latest");
 
   const limit = 10;
   const totalPages = Math.ceil(total / limit);
   const maxPageButtons = 5;
+
+  let sort = "createdAt";
+  let order = "DESC";
 
   // 화면에 보여줄 페이지 번호의 시작
   const startPage =
@@ -37,6 +40,31 @@ export default function Home() {
     const params = new URLSearchParams();
     params.set("page", String(page));
     params.set("limit", String(limit));
+
+    switch (sortName) {
+      case "latest":
+        sort = "createdAt";
+        order = "DESC";
+        break;
+
+      case "oldest":
+        sort = "createdAt";
+        order = "ASC";
+        break;
+
+      case "titleAsc":
+        sort = "title";
+        order = "ASC";
+        break;
+
+      case "titleDesc":
+        sort = "title";
+        order = "DESC";
+        break;
+    }
+
+    params.set("order", order);
+    params.set("sort", sort);
 
     if (completed && completed !== "all") {
       params.set("completed", completed);
@@ -90,6 +118,10 @@ export default function Home() {
   useEffect(() => {
     fetchTodos();
   }, [page]);
+
+  useEffect(() => {
+    fetchTodos();
+  }, [sort]);
 
   // todo 완료여부 수정
   async function toggleTodo(id: number) {
@@ -255,7 +287,7 @@ export default function Home() {
             id="sort"
             className="sort-select"
             value={sort}
-            onChange={(e) => setSort(e.target.value)}
+            onChange={(e) => setSortName(e.target.value)}
           >
             <option value="latest">최신순</option>
             <option value="oldest">오래된순</option>

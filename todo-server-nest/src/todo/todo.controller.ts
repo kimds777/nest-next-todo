@@ -20,12 +20,16 @@ export class TodoController {
     @Query('limit') limit: number,
     @Query('completed') completed?: string,
     @Query('searchWord') searchWord?: string,
+    @Query('sort') sort?: string,
+    @Query('order') order?: 'ASC' | 'DESC',
   ) {
     return this.todoService.findWithFilter(
       Number(page),
       Number(limit),
       completed,
       searchWord,
+      sort,
+      order,
     );
   }
 

@@ -41,6 +41,8 @@ export class TodoService {
     limit: number,
     completed?: string,
     searchWord?: string,
+    sort: string = 'createdAt',
+    order: 'ASC' | 'DESC' = 'DESC',
   ) {
     const qb = this.todoRepository.createQueryBuilder('todo');
 
@@ -55,6 +57,9 @@ export class TodoService {
         searchWord: `%${searchWord}%`,
       });
     }
+
+    // 정렬
+    qb.orderBy(`todo.${sort}`, order);
 
     // 페이지네이션
     const skip = (page - 1) * limit;
