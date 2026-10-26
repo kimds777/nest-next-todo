@@ -16,6 +16,6 @@ export class Todo {
   @Column({ default: false })
   completed: boolean;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }
