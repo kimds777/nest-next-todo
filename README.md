@@ -283,7 +283,7 @@ DATABASE_URL=postgresql://<user>:<password>@<host>:5432/postgres
 ```
 
 ### 3. 실행
- 
+``` 
 # 백엔드 실행
 cd todo-server-nest
 npm install
@@ -294,9 +294,6 @@ cd todo-client-next
 npm install
 npm run dev
 ```
-
-환경변수 설정이 필요한 경우 `.env.example`을 참고해 `.env` 파일을 생성하세요.
-
 
   
 ## 폴더 구조
