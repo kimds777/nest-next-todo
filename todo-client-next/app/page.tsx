@@ -11,7 +11,7 @@ interface Todo {
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [title, setTitle] = useState("");
-  const [completed, setcompleted] = useState(false);
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "true" | "false">("all");
   const [searchWord, setSearchWord] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -24,9 +24,6 @@ export default function Home() {
   const totalPages = Math.ceil(total / limit);
   const maxPageButtons = 5;
 
-  let sort = "createdAt";
-  let order = "DESC";
-
   // 화면에 보여줄 페이지 번호의 시작
   const startPage =
     Math.floor((page - 1) / maxPageButtons) * maxPageButtons + 1;
@@ -36,43 +33,24 @@ export default function Home() {
 
   // todo 목록 조회
   // todo 완료, 미완료 조회
-  const fetchTodos = async (completed?: string, searchWord?: string) => {
-    const params = new URLSearchParams();
-    params.set("page", String(page));
-    params.set("limit", String(limit));
+  const fetchTodos = async () => {
+    const sortMap = {
+      latest: { sort: "createdAt", order: "DESC" },
+      oldest: { sort: "createdAt", order: "ASC" },
+      titleAsc: { sort: "title", order: "ASC" },
+      titleDesc: { sort: "title", order: "DESC" },
+    } as const;
+    const { sort, order } = sortMap[sortName as keyof typeof sortMap];
 
-    switch (sortName) {
-      case "latest":
-        sort = "createdAt";
-        order = "DESC";
-        break;
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+      sort,
+      order,
+    });
 
-      case "oldest":
-        sort = "createdAt";
-        order = "ASC";
-        break;
-
-      case "titleAsc":
-        sort = "title";
-        order = "ASC";
-        break;
-
-      case "titleDesc":
-        sort = "title";
-        order = "DESC";
-        break;
-    }
-
-    params.set("order", order);
-    params.set("sort", sort);
-
-    if (completed && completed !== "all") {
-      params.set("completed", completed);
-    }
-
-    if (searchWord) {
-      params.set("searchWord", searchWord);
-    }
+    if (filter !== "all") params.set("completed", filter);
+    if (appliedSearch) params.set("searchWord", appliedSearch);
 
     const url = `http://localhost:3000/todo?${params.toString()}`;
     console.log("fetchTodos url==>", url);
@@ -88,12 +66,19 @@ export default function Home() {
   // filter 버튼 처리
   const handleFilter = (value: "all" | "true" | "false") => {
     setFilter(value);
+    setPage(1);
+  };
 
-    if (value === "all") {
-      fetchTodos();
-    } else {
-      fetchTodos(value);
-    }
+  // 검색 버튼 처리
+  const handleSearch = () => {
+    setAppliedSearch(searchWord);
+    setPage(1);
+  };
+
+  // 정렬 변경 처리
+  const handleSort = (value: string) => {
+    setSortName(value);
+    setPage(1);
   };
 
   // todo 등록
@@ -111,17 +96,8 @@ export default function Home() {
   };
 
   useEffect(() => {
-    //fetchTodos();
-    handleFilter("all");
-  }, []);
-
-  useEffect(() => {
     fetchTodos();
-  }, [page]);
-
-  useEffect(() => {
-    fetchTodos();
-  }, [sort]);
+  }, [page, filter, sortName, appliedSearch]);
 
   // todo 완료여부 수정
   async function toggleTodo(id: number) {
@@ -240,7 +216,7 @@ export default function Home() {
           onChange={(e) => setSearchWord(e.target.value)}
           placeholder="검색어를 입력해주세요."
         />
-        <button id="searchBtn" onClick={() => fetchTodos(filter, searchWord)}>
+        <button id="searchBtn" onClick={handleSearch}>
           검색
         </button>
       </div>
@@ -286,8 +262,8 @@ export default function Home() {
           <select
             id="sort"
             className="sort-select"
-            value={sort}
-            onChange={(e) => setSortName(e.target.value)}
+            value={sortName}
+            onChange={(e) => handleSort(e.target.value)}
           >
             <option value="latest">최신순</option>
             <option value="oldest">오래된순</option>
@@ -405,14 +381,14 @@ export default function Home() {
         <button
           className="paginationButton"
           onClick={() => setPage(page + 1)}
-          disabled={page === totalPages}
+          disabled={page >= totalPages}
         >
           ›
         </button>
         <button
           className="paginationButton"
           onClick={() => setPage(totalPages)}
-          disabled={page === totalPages}
+          disabled={page >= totalPages}
         >
           »
         </button>
