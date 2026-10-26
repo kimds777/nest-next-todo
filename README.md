@@ -24,9 +24,10 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 ## 기술 스택
  
 | 구분 | 기술 |
-| --- | --- |
+|------|------|
 | Backend | NestJS |
-| Database | SQLite (with TypeORM) |
+| Database | PostgreSQL (Supabase) |
+| ORM | TypeORM |
 | Frontend | Next.js |
 | Tool | Git, VS Code |
 
@@ -48,7 +49,7 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 [Service Layer]
       │
       ▼
-[TypeORM] ──▶ [SQLite]
+[TypeORM] ──▶ [PostgreSQL (Supabase)]
 ```
 
 
@@ -56,13 +57,15 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 ## ERD
  
 <!-- Todo 테이블 구조(필드, 타입, 관계)를 표 또는 다이어그램으로 정리하세요 -->
- 
-| 컬럼명 | 타입 | 설명 |
-| --- | --- | --- |
-| id | number | PK |
-| title | string | 할 일 제목 |
-| isDone | boolean | 완료 여부 |
-| createdAt | datetime | 생성일시 |
+
+| 컬럼명 | 타입 | 제약조건 | 설명 |
+|--------|------|----------|------|
+| id | int4 | PK, 자동 증가 | Todo ID |
+| title | text | NOT NULL | 할 일 제목 |
+| completed | boolean | NOT NULL, 기본값 false | 완료 여부 |
+| created_at | timestamptz | NOT NULL, 기본값 now() | 생성일시 |
+
+> DB 컬럼은 snake_case, 코드(엔티티)는 camelCase를 사용하며 `SnakeNamingStrategy`로 자동 매핑합니다. (`createdAt` ↔ `created_at`)
 
   
   <br>
@@ -132,32 +135,155 @@ Todo 삭제
 | id | number | 삭제할 Todo의 ID |
 
 
+  <br>
   
 ## 트러블슈팅 / 기술적 의사결정
 
 
   
-### 왜 SQLite를 선택했는가
-개인 프로젝트 규모에서 별도 DB 서버 설치 없이 빠르게 개발/배포하기 위해 선택
+### 1. SQLite에서 PostgreSQL(Supabase)로 전환
 
+**초기 선택**: 개인 프로젝트 규모에서 별도 DB 서버 설치 없이 빠르게 개발하기 위해 SQLite를 사용함
 
+**전환 이유**: 배포를 준비하면서, PaaS 환경은 재배포 시 서버 파일 시스템이 초기화되어 파일 기반인 SQLite 데이터가 유실될 수 있다는 문제를 확인함. 애플리케이션 서버와 DB를 분리하기 위해 외부 관리형 DB로 전환함
+
+**Supabase를 선택한 이유**
+- 무료 플랜으로 PostgreSQL을 사용할 수 있음
+- 대시보드에서 테이블과 데이터를 바로 확인할 수 있어 디버깅이 편리함
+
+**전환 과정에서 적용한 설정**
+- **환경변수 분리**: `@nestjs/config`로 DB 접속 정보를 `.env`에서 관리하고 저장소에는 올리지 않음
+- **네이밍 전략**: PostgreSQL 관례에 맞춰 DB 컬럼은 snake_case로 두고, `SnakeNamingStrategy`로 엔티티의 camelCase와 자동 매핑
+- **`synchronize: false`**: 엔티티와 DB 구조가 다를 때 TypeORM이 컬럼을 삭제 후 재생성해 데이터가 유실되는 것을 방지
+- **id 타입을 int4로 지정**: Node의 pg 드라이버는 int8(bigint)을 문자열로 반환하기 때문에, 엔티티의 `id: number`와 타입을 맞추기 위해 int4 사용
+
+  <br>
   
-### Optimistic UI의 에러 응답 구조 설계
+### 2. Optimistic UI의 에러 응답 구조 설계
 클라이언트에서 먼저 상태를 반영한 뒤, 서버 응답 실패 시 이전 상태로 롤백
 
-
+  <br>
   
-<!-- NestJS 계층 구조로 관심사를 분리한 경험 -->
-<!-- Controller-Service-Module 구조를 적용하며 얻은 인사이트 -->
+### 3. 페이지 이동 시 필터·검색·정렬 조건이 초기화되는 문제
 
+#### 문제 상황
+- '완료' 필터를 적용한 상태에서 2페이지를 누르면 필터가 풀리고 전체 Todo 목록이 출력됨
+- 검색어를 입력한 상태에서 페이지를 이동해도 검색 조건이 사라짐
+- 정렬 옵션을 변경해도 목록이 다시 조회되지 않음
+- 서버 에러 없이 결과만 잘못 나오는 로직 오류
 
+#### 원인 분석
+브라우저 Network 탭에서 실제 요청 URL을 확인한 결과, 페이지 이동 시 필터 파라미터가 빠진 채로 요청되고 있었음.
+
+```
+GET /todo?page=2&limit=10&order=DESC&sort=createdAt   ← completed 파라미터 누락
+```
+
+요청 URL에 필터가 없으므로 백엔드는 정상 동작했고, 원인은 프론트엔드에 있었음.
+
+1. **조회 함수가 조건을 인자로 받는 구조**
+   `fetchTodos(completed, searchWord)`처럼 조건을 인자로 받다 보니, 페이지 변경 시 `fetchTodos()`를 인자 없이 호출하면 필터와 검색어가 `undefined`로 전달됨
+2. **정렬 값이 state가 아닌 일반 변수**
+   `let sort = "createdAt"`은 렌더링마다 초기값으로 다시 생성되기 때문에, `useEffect(..., [sort])`가 정렬 변경을 감지하지 못함
+3. **조건 변경 시 페이지가 초기화되지 않음**
+   3페이지를 보다가 필터를 바꾸면 해당 필터의 3페이지를 요청해 빈 화면이 나올 수 있음
+
+#### 해결 방법
+조회 조건(페이지·필터·정렬·검색어)을 모두 state로 관리하고, 조회 함수는 인자 없이 **항상 현재 state를 읽도록** 변경. 조건이 바뀔 때 다시 조회하는 `useEffect`도 하나로 통합함.
+
+**Before**
+```tsx
+const fetchTodos = async (completed?: string, searchWord?: string) => { ... };
+
+useEffect(() => { fetchTodos(); }, [page]);   // 필터·검색어 누락
+useEffect(() => { fetchTodos(); }, [sort]);   // sort가 state가 아니라 감지 안 됨
+```
+
+**After**
+```tsx
+const fetchTodos = async () => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit), sort, order });
+  if (filter !== "all") params.set("completed", filter);
+  if (appliedSearch) params.set("searchWord", appliedSearch);
+  // ...
+};
+
+// 조건 변경 시 1페이지로 이동
+const handleFilter = (value) => { setFilter(value); setPage(1); };
+const handleSearch = () => { setAppliedSearch(searchWord); setPage(1); };
+const handleSort = (value) => { setSortName(value); setPage(1); };
+
+// 조회 조건 중 하나라도 바뀌면 다시 조회
+useEffect(() => {
+  fetchTodos();
+}, [page, filter, sortName, appliedSearch]);
+```
+
+검색은 입력 중인 값(`searchWord`)과 실제 적용된 값(`appliedSearch`)을 분리해, 검색 버튼을 눌렀을 때만 조회되도록 함.
+
+#### 배운 점
+- 화면 결과가 이상할 때는 **Network 탭에서 실제 요청 URL을 먼저 확인**하면 프론트·백엔드 중 어디가 문제인지 빠르게 구분할 수 있음
+- 여러 조회 조건이 함께 동작하는 화면에서는 조건을 함수 인자로 흩어서 넘기기보다, **state를 단일 기준(Single Source of Truth)으로 두고 한 곳에서 요청을 만드는 구조**가 버그를 줄임
+- `useEffect`의 의존성 배열에는 **렌더링 사이에 값이 유지되는 state**를 넣어야 변경을 감지할 수 있음
+
+  <br>
+
+### 4. 조회 결과가 0건일 때 다음 페이지 버튼이 활성화되는 문제
+
+#### 문제 상황
+- 완료 항목이 하나도 없는 상태에서 '완료' 필터를 누르면 목록은 비어 있는데 `›`, `»` 버튼이 활성화됨
+- 버튼을 누르면 2페이지, 3페이지로 계속 이동하며 빈 목록을 요청함
+
+#### 원인 분석
+전체 페이지 수는 `Math.ceil(total / limit)`로 계산하는데, 결과가 0건이면 `totalPages`가 0이 됨.
+버튼 비활성화 조건이 `page === totalPages`(1 === 0)라서 항상 `false`가 되어 버튼이 막히지 않았음.
+
+#### 해결 방법
+뒤로 가는 버튼의 조건을 `===`에서 `>=`로 변경해, 현재 페이지가 마지막 페이지 **이상**이면 비활성화되도록 함.
+
+```tsx
+// Before
+disabled={page === totalPages}
+
+// After
+disabled={page >= totalPages}
+```
+
+앞으로 가는 버튼(`«`, `‹`)은 기존처럼 `page === 1`을 기준으로 유지함.
+
+#### 배운 점
+- 경계값 조건은 `===`보다 `>=`, `<=`처럼 **범위로 비교**하는 것이 예상치 못한 값(0건, 범위 초과)에 더 안전함
+- 기능 구현 후 **데이터가 없는 경우, 첫 페이지, 마지막 페이지** 같은 경계 상황을 따로 테스트해야 함
+
+  <br>
   
 ## 실행 방법
  
 ```bash
 # 저장소 클론
 git clone https://github.com/kimds777/nest-next-todo.git
- 
+
+### 1. 데이터베이스 준비
+Supabase(또는 PostgreSQL)에서 아래 SQL로 테이블을 생성합니다.
+
+```sql
+create table todo (
+  id int4 generated by default as identity primary key,
+  title text not null,
+  completed boolean not null default false,
+  created_at timestamptz not null default now()
+);
+```
+
+### 2. 환경변수 설정
+`todo-server-nest/.env.example`을 참고해 `todo-server-nest/.env` 파일을 생성합니다.
+
+```
+DATABASE_URL=postgresql://<user>:<password>@<host>:5432/postgres
+```
+
+### 3. 실행
+``` 
 # 백엔드 실행
 cd todo-server-nest
 npm install
@@ -168,9 +294,6 @@ cd todo-client-next
 npm install
 npm run dev
 ```
-
-환경변수 설정이 필요한 경우 `.env.example`을 참고해 `.env` 파일을 생성하세요.
-
 
   
 ## 폴더 구조
