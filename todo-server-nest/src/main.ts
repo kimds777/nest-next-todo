@@ -1,6 +1,10 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { initializeTransactionalContext, addTransactionalDataSource } from 'typeorm-transactional';
+import {
+  initializeTransactionalContext,
+  addTransactionalDataSource,
+} from 'typeorm-transactional';
 import { DataSource } from 'typeorm';
 
 async function bootstrap() {
@@ -8,6 +12,7 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
   app.enableCors();
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   const dataSource = app.get(DataSource);
   addTransactionalDataSource(dataSource);
