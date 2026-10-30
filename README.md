@@ -16,6 +16,7 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 - [주요 기능](#주요-기능)
 - [API 명세](#api-명세)
 - [트러블슈팅 / 기술적 의사결정](#트러블슈팅--기술적-의사결정)
+- [한계 및 개선 방향](#한계-및-개선-방향)
 - [실행 방법](#실행-방법)
 - [폴더 구조](#폴더-구조)
 
@@ -31,31 +32,45 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 | Auth | JWT (@nestjs/jwt), bcrypt |
 | Validation | class-validator, class-transformer |
 | Frontend | Next.js |
-| Tool | Git, VS Code |
+| Tool | Git, VS Code, Postman |
 
 
 
   
 ## 아키텍처
  
-<!-- 프론트-백엔드 요청/응답 흐름과 Controller-Service-Module 계층 구조도를 삽입하세요 -->
-<!-- 예: Next.js(Client) → NestJS Controller → Service → TypeORM → SQLite -->
- 
 ```
 [Next.js Client]
       │  REST API (fetch)
+      │  Authorization: Bearer <accessToken>
       ▼
-[NestJS Controller]
-      │
+[JwtAuthGuard] ── 토큰 검증 실패 시 401
+      │  request.user = { id, email }
       ▼
-[Service Layer]
+[NestJS Controller] ── @CurrentUser()로 로그인 사용자 추출
+      │  userId 전달
+      ▼
+[Service Layer] ── 모든 조회·수정·삭제에 userId 조건 포함
       │
       ▼
 [TypeORM] ──▶ [PostgreSQL (Supabase)]
 ```
+ <br>
 
+### 인증·인가 흐름
+ 
+```
+[회원가입]  POST /auth/signup → DTO 검증 → 비밀번호 bcrypt 해싱 → users 저장
+[로그인]    POST /auth/login  → bcrypt.compare로 검증 → access token 발급 (payload: sub=userId, email)
+[Todo 요청] Authorization 헤더 파싱 → jwtService.verifyAsync()
+            → request.user 주입 → 컨트롤러에서 @CurrentUser()로 꺼내 서비스에 userId 전달
+```
+ 
+- **커스텀 Guard 선택 이유**: 토큰 발급에 이미 `@nestjs/jwt`의 `JwtService`를 사용하고 있었고 인증 방식이 JWT 하나뿐이라, passport의 Strategy 추상화 없이 `CanActivate`를 직접 구현했습니다. 헤더 파싱 → 검증 → 사용자 주입 과정이 코드에 그대로 드러나 흐름을 이해하고 디버깅하기 쉽습니다.
+- `@UseGuards(JwtAuthGuard)`를 `TodoController` 클래스 단위로 적용해, 새 엔드포인트를 추가해도 인증이 누락되지 않도록 했습니다.
 
-  
+   <br>
+   
 ## ERD
  
 ```mermaid
@@ -78,6 +93,7 @@ erDiagram
 
 - 한 유저는 여러 Todo를 가지며, 외래 키는 N 쪽인 `todo.user_id`에만 존재합니다.
 - 조회가 항상 Todo 기준으로 이루어지므로 `@ManyToOne` 단방향 관계로 설계했습니다.
+- Todo 엔티티에 관계 필드와 별도로 `userId` 컬럼을 두어, 조회 시 join 없이 `where: { userId }`로 바로 필터링합니다.
 - 유저 삭제 시 해당 유저의 Todo도 함께 삭제됩니다 (`ON DELETE CASCADE`).
 - DB 컬럼은 snake_case, 코드(엔티티)는 camelCase를 사용하며 `SnakeNamingStrategy`로 자동 매핑합니다. (`createdAt` ↔ `created_at`)
 
@@ -104,6 +120,13 @@ erDiagram
 - **비밀번호 보호**: bcrypt로 해싱하여 저장하며, 엔티티에서 `select: false`로 지정해 일반 조회 시 응답에 포함되지 않도록 함
 - **JWT 로그인**: 로그인 성공 시 유효기간 1시간의 access token 발급, 서명 키는 환경변수(`JWT_SECRET`)로 분리
 - **계정 정보 노출 방지**: 존재하지 않는 이메일과 비밀번호 불일치에 동일한 401 메시지를 반환해, 가입 여부를 추측할 수 없도록 함
+
+
+### 인가 (사용자별 데이터 분리)
+ 
+- **JwtAuthGuard**: Todo API 전체에 적용, 토큰이 없거나 `Bearer` 형식이 아니거나 검증에 실패하면 401
+- **본인 Todo만 접근**: 목록 조회·생성·수정·삭제 모두 로그인한 사용자의 `userId` 기준으로 처리
+- **존재 여부 노출 방지**: 다른 사용자의 Todo에 접근하면 403이 아닌 404를 반환해, 해당 id의 Todo가 존재하는지 추측할 수 없도록 함
   
   <br>
 ## API 명세
@@ -124,6 +147,7 @@ erDiagram
 | --- | --- |
 | 400 | 요청 데이터 검증 실패 |
 | 401 | 인증 실패 |
+| 404 | 리소스 없음 (존재하지 않거나 다른 사용자의 Todo) |
 | 409 | 리소스 중복 (이메일 중복) |
  
  <br>
@@ -158,7 +182,7 @@ erDiagram
   "statusCode": 400
 }
 ```
- 
+ <br>
   
 ### POST /auth/login
 로그인 및 access token 발급
@@ -193,18 +217,73 @@ erDiagram
  
  <br>
 
-### GET /todos
-Todo 목록 조회
+### Todo API 공통
+ 
+아래 `/todo` API는 모두 로그인이 필요하며, 요청 헤더에 access token을 포함해야 합니다.
+요청자는 URI나 Body로 userId를 보내지 않습니다. 서버가 access token에서 사용자를 식별하므로,
+클라이언트가 다른 사용자의 id를 지정해 요청할 수 있는 경로 자체를 두지 않았습니다.
+ 
+```
+Authorization: Bearer <accessToken>
+```
+ 
+| 상태 코드 | 상황 |
+| --- | --- |
+| 401 | 토큰 없음, `Bearer` 형식 아님, 만료되거나 유효하지 않은 토큰 |
+ 
+```json
+{
+  "message": "유효하지 않은 토큰입니다.",
+  "error": "Unauthorized",
+  "statusCode": 401
+}
+```
+ <br>
+ 
+### GET /todo
+로그인한 사용자의 Todo 목록 조회
  
 **Query Parameters**
  
-| 이름 | 타입 | 필수 | 설명 |
-| --- | --- | --- | --- |
-| keyword | string | N | 제목 검색 키워드 (LIKE 검색) |
-| isDone | boolean | N | 완료 상태 필터 |
-
+| 이름 | 타입 | 필수 | 기본값 | 설명 |
+| --- | --- | --- | --- | --- |
+| page | number | N | 1 | 페이지 번호 |
+| limit | number | N | 10 | 페이지당 개수 |
+| completed | `true` \| `false` | N | - | 완료 상태 필터 |
+| searchWord | string | N | - | 제목 검색 키워드 (ILIKE, 대소문자 무시) |
+| sort | `createdAt` \| `title` | N | `createdAt` | 정렬 기준 |
+| order | `ASC` \| `DESC` | N | `DESC` | 정렬 방향 |
+ 
+**Response** `200 OK`
+ 
+```json
+{
+  "data": [
+    {
+      "id": 12,
+      "title": "README 보완",
+      "completed": false,
+      "userId": 1,
+      "createdAt": "2026-10-30T08:00:00.000Z"
+    }
+  ],
+  "total": 17,
+  "page": 1,
+  "limit": 10
+}
+```
+ 
+`total`은 필터·검색이 적용된 전체 개수로, 프론트에서 전체 페이지 수(`Math.ceil(total / limit)`) 계산에 사용합니다.
+ 
+**Error**
+ 
+| 상태 코드 | 상황 |
+| --- | --- |
+| 400 | 허용되지 않은 정렬 필드 (`sort=password` 등) |
+ 
+ <br>
   
-### POST /todos
+### POST /todo
 Todo 등록
  
 **Request Body**
@@ -212,26 +291,58 @@ Todo 등록
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
 | title | string | Y | 할 일 제목 |
-
+ 
+**Response** `201 Created`
+ 
+```json
+{ "id": 18, "title": "할 일", "completed": false, "userId": 1, "createdAt": "2026-10-30T08:22:19.528Z" }
+```
+ 
+**Error**
+ 
+| 상태 코드 | 상황 |
+| --- | --- |
+| 400 | title 누락 또는 빈 문자열 |
+ 
+ <br>
   
-### PATCH /todos/:id
-Todo 수정 (완료 상태 변경 포함)
+### PATCH /todo/:id
+Todo 완료 상태 토글 (Request Body 없음)
  
 **Path Parameter**
  
 | 이름 | 타입 | 설명 |
 | --- | --- | --- |
-| id | number | 수정할 Todo의 ID |
+| id | number | 변경할 Todo의 ID |
+ 
+**Error**
+ 
+| 상태 코드 | 상황 |
+| --- | --- |
+| 400 | id가 숫자가 아님 |
+| 404 | 존재하지 않거나 다른 사용자의 Todo |
+
+ <br>
+ 
+### PATCH /todo
+Todo 제목 수정
  
 **Request Body**
  
 | 필드 | 타입 | 필수 | 설명 |
 | --- | --- | --- | --- |
-| title | string | N | 수정할 제목 |
-| isDone | boolean | N | 수정할 완료 상태 |
-
+| id | number | Y | 수정할 Todo의 ID |
+| title | string | Y | 수정할 제목 |
+ 
+**Error**
+ 
+| 상태 코드 | 상황 |
+| --- | --- |
+| 404 | 존재하지 않거나 다른 사용자의 Todo |
+ 
+ <br>
    
-### DELETE /todos/:id
+### DELETE /todo/:id
 Todo 삭제
  
 **Path Parameter**
@@ -239,13 +350,25 @@ Todo 삭제
 | 이름 | 타입 | 설명 |
 | --- | --- | --- |
 | id | number | 삭제할 Todo의 ID |
-
+ 
+**Error**
+ 
+| 상태 코드 | 상황 |
+| --- | --- |
+| 400 | id가 숫자가 아님 |
+| 404 | 존재하지 않거나 다른 사용자의 Todo |
+ 
+```json
+{
+  "message": "Todo not found",
+  "error": "Not Found",
+  "statusCode": 404
+}
+```
 
   <br>
   
 ## 트러블슈팅 / 기술적 의사결정
-
-
   
 ### 1. SQLite에서 PostgreSQL(Supabase)로 전환
 
@@ -262,7 +385,8 @@ Todo 삭제
 - **네이밍 전략**: PostgreSQL 관례에 맞춰 DB 컬럼은 snake_case로 두고, `SnakeNamingStrategy`로 엔티티의 camelCase와 자동 매핑
 - **`synchronize: false`**: 엔티티와 DB 구조가 다를 때 TypeORM이 컬럼을 삭제 후 재생성해 데이터가 유실되는 것을 방지
 - **id 타입을 int4로 지정**: Node의 pg 드라이버는 int8(bigint)을 문자열로 반환하기 때문에, 엔티티의 `id: number`와 타입을 맞추기 위해 int4 사용
-
+- **검색 쿼리 `LIKE` → `ILIKE`**: 아래 7번 참고
+  
   <br>
   
 ### 2. Optimistic UI의 에러 응답 구조 설계
@@ -419,6 +543,154 @@ alter table todo enable row level security;
 - Supabase 공개 API로는 users, todo 테이블에 접근할 수 없음
 - 데이터 접근 경로를 NestJS 서버 하나로 통일해, 접근 제어 책임을 애플리케이션 계층에 둠
 
+  <br>
+  
+### 7. PostgreSQL 전환 후 검색이 대소문자를 구분하는 문제
+ 
+#### 문제 상황
+SQLite에서 사용하던 `LIKE` 검색 쿼리를 그대로 PostgreSQL에서 실행하면, `study`로 검색했을 때 `Study NestJS`가 조회되지 않음
+ 
+#### 원인 분석
+SQLite의 `LIKE`는 영문 대소문자를 구분하지 않지만, PostgreSQL의 `LIKE`는 구분함.
+ORM으로 같은 쿼리를 작성해도 **DB에 따라 연산자의 의미가 달라질 수 있었음**.
+ 
+#### 고민한 선택지
+1. `LOWER(todo.title) LIKE LOWER(:searchWord)`: DB에 독립적이지만 쿼리가 길어짐
+2. `ILIKE`: PostgreSQL 전용이지만 간결하고 의도가 명확함
+#### 선택과 이유
+운영 DB를 PostgreSQL로 확정했으므로 2번 `ILIKE`를 선택함. DB를 다시 교체할 경우 이 쿼리가 영향을 받는다는 점은 인지하고 있음.
+ 
+```ts
+qb.andWhere('todo.title ILIKE :searchWord', { searchWord: `%${searchWord}%` });
+```
+ 
+#### 배운 점
+- DB를 교체할 때는 스키마뿐 아니라 **기존 기능이 같은 결과를 내는지 회귀 테스트**가 필요함
+
+ <br>
+ 
+### 8. 쿼리 파라미터 누락 시 페이지네이션 500 에러
+ 
+#### 문제 상황
+`GET /todo`를 `page`, `limit` 없이 호출하자 `Provided "skip" value is not a number` 에러와 함께 500이 반환됨
+ 
+#### 원인 분석
+쿼리스트링 값은 항상 문자열 또는 `undefined`로 들어옴.
+컨트롤러에서 `Number(page)`로만 변환하고 있어, 값이 없으면 `Number(undefined)` → `NaN`이 되고 `skip = (page - 1) * limit` 계산 결과도 `NaN`이 되었음.
+프론트에서는 항상 page, limit을 보내고 있어 발견되지 않다가, Postman으로 파라미터 없이 요청하면서 드러남.
+ 
+#### 고민한 선택지
+1. 컨트롤러에서 기본값 처리 (`Number(page) || 1`)
+2. `DefaultValuePipe` + `ParseIntPipe` 조합
+3. 쿼리 DTO + `class-transformer`로 타입 변환·기본값·검증을 한 번에 처리
+#### 선택과 이유
+우선 1번으로 기본값을 지정해 문제를 막음. 쿼리 파라미터가 6개로 늘어난 만큼, 이후 3번 쿼리 DTO로 옮겨 검증 방식을 회원가입 API와 통일할 예정.
+ 
+```ts
+// Before
+Number(page), Number(limit)
+ 
+// After
+Number(page) || 1, Number(limit) || 10
+```
+ 
+#### 배운 점
+- 프론트가 항상 보내는 값이라도, **API는 단독으로 호출될 수 있다는 전제**로 기본값과 예외를 처리해야 함
+
+  <br>
+  
+### 9. title 누락 시 400이 아닌 500이 반환되는 문제
+ 
+#### 문제 상황
+`POST /todo`를 title 없이 요청하자 `null value in column "title" violates not-null constraint` DB 에러와 함께 500이 반환됨
+ 
+#### 원인 분석
+전역 `ValidationPipe`를 등록해 두었지만(5번), Todo 생성은 DTO가 아닌 `@Body('title') title: string`으로 값을 받고 있었음.
+ValidationPipe는 **class-validator 데코레이터가 붙은 DTO 클래스에만 규칙을 적용**하기 때문에, 원시 타입으로 받은 값은 검증 없이 DB까지 전달됨.
+클라이언트의 잘못된 요청인데 서버 내부 오류처럼 보이는 문제가 있었음.
+ 
+#### 해결 방법
+서비스에서 title 값을 확인하고 `BadRequestException`을 던지도록 수정함.
+ 
+```ts
+if (!title?.trim()) {
+  throw new BadRequestException('제목을 입력해주세요.');
+}
+```
+ 
+#### 배운 점
+- 전역 Pipe를 등록했다고 모든 입력이 검증되는 것이 아니라, **검증 규칙이 정의된 DTO로 받아야** 동작함
+- DB 제약 조건은 마지막 방어선이고, 입력 오류는 요청 진입 시점에서 4xx로 응답해야 함
+  <br>
+  
+### 10. 정렬 필드에 사용자 입력이 그대로 들어가는 문제
+ 
+#### 문제 상황
+정렬 기준을 `` qb.orderBy(`todo.${sort}`) ``처럼 쿼리스트링 값으로 직접 조합하고 있어, 존재하지 않는 컬럼명이 들어오면 500 에러가 발생함
+ 
+#### 원인 분석
+`where` 조건의 값은 파라미터 바인딩(`:param`)으로 안전하게 처리되지만, `ORDER BY`의 컬럼명은 바인딩할 수 없어 문자열로 조합됨.
+사용자 입력이 SQL 구조 자체에 들어가는 형태였음.
+ 
+#### 해결 방법
+정렬 가능한 필드를 화이트리스트로 정의하고, 그 외 값은 400으로 거절함. 정렬 방향도 `ASC` / `DESC` 중 하나로 고정함.
+ 
+```ts
+const SORTABLE_FIELDS = ['createdAt', 'title'] as const;
+ 
+if (!SORTABLE_FIELDS.includes(sort)) {
+  throw new BadRequestException('정렬할 수 없는 필드입니다.');
+}
+const direction = order === 'ASC' ? 'ASC' : 'DESC';
+```
+ 
+#### 결과
+`sort=password` 같은 요청은 400으로 거절되어, SQL 구조에 임의 입력이 들어갈 여지를 제거함
+ 
+  <br>
+  
+### 11. 다른 사용자의 Todo 접근 시 403 대신 404를 반환한 이유
+ 
+#### 고민
+사용자 B가 사용자 A의 Todo id로 수정·삭제를 요청할 때, "권한 없음(403)"과 "없음(404)" 중 무엇을 반환할지 결정해야 했음
+ 
+#### 선택과 이유
+404를 선택함. 403을 반환하면 "해당 id의 Todo가 존재한다"는 정보가 노출되어, id를 순회하며 다른 사용자의 데이터 존재 여부를 추측할 수 있음.
+로그인 실패 시 이메일 존재 여부와 관계없이 같은 401을 반환한 것과 같은 원칙임.
+ 
+구현은 "조회 후 소유자 비교" 대신, **처음부터 `id + userId` 조건으로 조회**해 남의 Todo는 아예 조회되지 않도록 함.
+ 
+```ts
+private async findOwnTodo(id: number, userId: number) {
+  const todo = await this.todoRepository.findOneBy({ id, userId });
+  if (!todo) throw new NotFoundException('Todo not found');
+  return todo;
+}
+ 
+async delete(id: number, userId: number) {
+  const result = await this.todoRepository.delete({ id, userId });
+  if (result.affected === 0) throw new NotFoundException('Todo not found');
+}
+```
+ 
+#### 결과
+- 계정 두 개로 교차 테스트하여, 다른 사용자의 Todo 조회·수정·삭제 시 404가 반환되고 실제 데이터가 변경되지 않는 것을 Supabase에서 확인함
+- 목록 조회는 QueryBuilder의 첫 조건을 `userId`로 두어, 기존 검색·필터·정렬·페이지네이션 로직은 변경 없이 사용자별로 동작함
+  
+ <br>
+ 
+## 한계 및 개선 방향
+ 
+### `%keyword%` 검색과 인덱스
+앞뒤에 와일드카드가 붙은 `ILIKE '%keyword%'`는 일반 B-Tree 인덱스를 사용하지 못해, 데이터가 많아지면 전체 스캔이 발생함. 현재 규모에서는 문제가 없지만, 데이터가 늘어나면 PostgreSQL의 `pg_trgm` 확장 + GIN 인덱스나 Full Text Search를 검토할 수 있음.
+ 
+### Offset 페이지네이션의 한계
+`OFFSET`은 앞의 행을 모두 읽고 버리기 때문에 뒤 페이지로 갈수록 느려지고, 조회 중 데이터가 추가·삭제되면 항목이 중복되거나 누락될 수 있음. 무한 스크롤처럼 순차 조회가 중심이라면 마지막 항목의 기준값으로 다음 데이터를 가져오는 cursor 방식이 대안이지만, 특정 페이지로 바로 이동하기 어려워 페이지 번호 UI를 사용하는 현재 구조에서는 offset을 유지함.
+ 
+### 개선 예정
+- Todo API 입력을 DTO + class-validator로 통일 (트러블슈팅 8, 9번)
+- `PATCH /todo`(body에 id)를 `PATCH /todo/:id`로, 완료 토글은 `PATCH /todo/:id/completed`로 분리해 REST 경로 정리
+- Refresh Token 도입으로 access token 만료 시간 단축 및 재로그인 부담 완화
   
  <br>
   
@@ -487,9 +759,14 @@ npm run dev
 .
 ├── todo-server-nest/
 │   ├── src/
+│   │   ├── auth/
+│   │   │   ├── jwt-auth.guard.ts        # JWT 검증 Guard
+│   │   │   ├── current-user.decorator.ts # 로그인 사용자 추출
+│   │   │   └── ...
 │   │   ├── todo/
 │   │   │   ├── todo.controller.ts
 │   │   │   ├── todo.service.ts
+│   │   │   ├── todo.entity.ts
 │   │   │   └── todo.module.ts
 │   │   └── main.ts
 │   └── ...
