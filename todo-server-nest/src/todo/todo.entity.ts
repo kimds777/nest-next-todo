@@ -22,7 +22,13 @@ export class Todo {
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.todos, {
+    onDelete: 'CASCADE',
+    nullable: false,
+  })
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @Column({ name: 'user_id' })
+  userId: number;
 }

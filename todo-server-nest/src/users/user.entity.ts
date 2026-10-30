@@ -3,7 +3,9 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
+import { Todo } from '../todo/todo.entity';
 
 @Entity('users')
 export class User {
@@ -18,4 +20,7 @@ export class User {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @OneToMany(() => Todo, (todo) => todo.user)
+  todos: Todo[];
 }
