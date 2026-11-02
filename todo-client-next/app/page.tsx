@@ -9,6 +9,7 @@ interface Todo {
 }
 
 export default function Home() {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
   const [todos, setTodos] = useState<Todo[]>([]);
   const [title, setTitle] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -52,7 +53,7 @@ export default function Home() {
     if (filter !== "all") params.set("completed", filter);
     if (appliedSearch) params.set("searchWord", appliedSearch);
 
-    const url = `http://localhost:3000/todo?${params.toString()}`;
+    const url = `${API_URL}/todo?${params.toString()}`;
     console.log("fetchTodos url==>", url);
 
     const res = await fetch(url);
@@ -85,7 +86,7 @@ export default function Home() {
   const addTodo = async () => {
     if (!title) return;
 
-    await fetch("http://localhost:3000/todo", {
+    await fetch(`${API_URL}/todo`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
@@ -115,7 +116,7 @@ export default function Home() {
 
     try {
       // 서버에 변경 요청
-      const response = await fetch("http://localhost:3000/todo/" + id, {
+      const response = await fetch(`${API_URL}/todo/` + id, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
       });
@@ -144,7 +145,7 @@ export default function Home() {
     setTodos((prevTodos) => prevTodos.filter((todo) => todo.id !== id));
 
     try {
-      const response = await fetch("http://localhost:3000/todo/" + id, {
+      const response = await fetch(`${API_URL}/todo/` + id, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
       });
@@ -179,7 +180,7 @@ export default function Home() {
 
     try {
       // 서버에 변경 요청
-      const response = await fetch("http://localhost:3000/todo/", {
+      const response = await fetch(`${API_URL}/todo/`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: id, title: editTitle }),
