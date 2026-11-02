@@ -11,8 +11,6 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        //const url = config.get<string>('DATABASE_URL');
-        //console.log('DB URL:', url?.replace(/:([^:@]+)@/, ':****@'));
         return {
           type: 'postgres',
           url: config.get<string>('DATABASE_URL'),
