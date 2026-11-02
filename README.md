@@ -2,16 +2,22 @@
  
 NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관리 웹 애플리케이션입니다.
 실무에서 다루기 어려웠던 프론트-백엔드 통신 구조와 에러 응답 설계를 직접 처음부터 끝까지 설계해보기 위해 시작했습니다.
+
+**서비스**: https://nest-next-todo-eight.vercel.app
+
+> 현재 배포 버전은 회원가입·로그인 기능 이전 버전입니다. 로그인 기능은 백엔드 구현을 마쳤고 프론트 연동을 진행 중입니다. ([배포](#배포) 참고)
+> 무료 서버를 사용해 첫 접속 시 응답까지 약 1분이 걸릴 수 있습니다.
  
 <!-- 실행 화면 GIF나 스크린샷 삽입예정 -->
 <!-- ![demo](./docs/demo.gif) -->
 
-
+ <br>
   
 ## 목차
  
 - [기술 스택](#기술-스택)
 - [아키텍처](#아키텍처)
+- [배포](#배포)
 - [ERD](#erd)
 - [주요 기능](#주요-기능)
 - [API 명세](#api-명세)
@@ -20,7 +26,7 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 - [실행 방법](#실행-방법)
 - [폴더 구조](#폴더-구조)
 
-
+ <br>
   
 ## 기술 스택
  
@@ -35,7 +41,7 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 | Tool | Git, VS Code, Postman |
 
 
-
+ <br>
   
 ## 아키텍처
  
@@ -70,6 +76,40 @@ NestJS와 Next.js로 프론트엔드와 백엔드를 함께 구현한 Todo 관�
 - `@UseGuards(JwtAuthGuard)`를 `TodoController` 클래스 단위로 적용해, 새 엔드포인트를 추가해도 인증이 누락되지 않도록 했습니다.
 
    <br>
+
+## 배포
+
+| 구분 | 플랫폼 | 주소 |
+| --- | --- | --- |
+| Frontend | Vercel | https://nest-next-todo-eight.vercel.app |
+| Backend | Render | https://nest-next-todo-api.onrender.com |
+| Database | Supabase (PostgreSQL) | 운영·개발 프로젝트 분리 |
+
+```
+[Browser] ──▶ [Vercel: Next.js] ──(REST API)──▶ [Render: NestJS] ──▶ [Supabase: PostgreSQL]
+```
+
+### 브랜치 운영
+
+| 브랜치 | 역할 |
+| --- | --- |
+| `deploy` | 운영 배포 브랜치. Vercel·Render가 이 브랜치에 push될 때 자동 배포 |
+| `main` | 개발 브랜치. 로그인 프론트 연동 진행 중 |
+
+배포 설정 변경은 `deploy`에 커밋한 뒤 `main`으로 merge해, 이후 로그인 기능을 운영에 반영할 때 설정을 다시 수정하지 않도록 함.
+
+### 환경변수
+
+| 위치 | 이름 | 설명 |
+| --- | --- | --- |
+| Render | `DATABASE_URL` | 운영 DB 접속 주소 |
+| Render | `CLIENT_URL` | CORS 허용 도메인 (Vercel 주소) |
+| Vercel | `NEXT_PUBLIC_API_URL` | API 서버 주소 |
+
+### 참고
+- Render 무료 플랜은 15분간 요청이 없으면 서버가 대기 상태로 전환되어, 첫 요청 시 약 1분이 걸릴 수 있음
+
+ <br>
    
 ## ERD
  
@@ -621,7 +661,8 @@ if (!title?.trim()) {
 #### 배운 점
 - 전역 Pipe를 등록했다고 모든 입력이 검증되는 것이 아니라, **검증 규칙이 정의된 DTO로 받아야** 동작함
 - DB 제약 조건은 마지막 방어선이고, 입력 오류는 요청 진입 시점에서 4xx로 응답해야 함
-  <br>
+
+ <br>
   
 ### 10. 정렬 필드에 사용자 입력이 그대로 들어가는 문제
  
@@ -678,6 +719,60 @@ async delete(id: number, userId: number) {
 - 목록 조회는 QueryBuilder의 첫 조건을 `userId`로 두어, 기존 검색·필터·정렬·페이지네이션 로직은 변경 없이 사용자별로 동작함
   
  <br>
+
+ ### 12. 로그인 이전 버전 배포 시 개발 DB와 스키마가 맞지 않는 문제
+
+#### 상황
+지원 일정상 프론트 로그인 연동보다 배포를 먼저 하기로 결정함. 그동안 `main` 브랜치 하나로만 작업해 와서 `main`에는 이미 백엔드 로그인(JwtAuthGuard)이 적용되어 있었고, 그대로 배포하면 프론트에 토큰 처리가 없어 모든 Todo 요청이 401로 실패하는 상태였음.
+
+그래서 로그인 작업 직전 커밋에서 `deploy` 브랜치를 분리해 배포하기로 함.
+
+#### 문제
+개발 DB의 `todo.user_id`는 로그인 기능 구현 시 **NOT NULL + FK**로 설정되어 있었음.
+로그인 이전 코드는 Todo 생성 시 `user_id`를 넣지 않기 때문에, 같은 DB에 연결하면 모든 Todo 생성이 제약 조건 위반으로 실패하게 됨.
+
+#### 고민한 선택지
+1. `user_id`를 nullable로 변경: 가장 빠르지만 "모든 Todo는 소유자가 있다"는 설계를 배포 편의 때문에 깨게 됨
+2. 프론트 로그인까지 완성 후 배포: 지원 일정과 맞지 않음
+3. 운영용 Supabase 프로젝트를 새로 만들어 로그인 이전 스키마로 구성
+
+#### 선택과 이유
+3번을 선택함. 배포 버전과 DB 스키마를 맞추면서 개발 DB의 제약 조건은 그대로 유지할 수 있음.
+또한 같은 DB를 쓰면 로컬 개발 중 생성한 테스트 데이터가 운영 화면에 그대로 노출되는데, DB를 분리해 이 문제도 함께 해결함.
+
+#### 배운 점
+- 코드 버전과 DB 스키마는 함께 움직여야 하며, 이전 버전 코드를 배포할 때는 **그 시점의 스키마**를 기준으로 확인해야 함
+- 운영·개발 DB 분리는 데이터 오염을 막는 기본 구성임
+- 기능 단위로 브랜치를 나눠 작업했다면 배포 가능한 상태를 분리하기 쉬웠음. 이후 기능은 `feature/*` 브랜치에서 작업할 예정
+
+  <br>
+
+### 13. 로컬 주소에 의존하던 설정을 환경변수로 분리
+
+#### 상황
+배포 전 코드를 점검하면서 로컬 환경에만 맞춰진 설정 두 가지를 확인함.
+- 프론트엔드: API 주소가 `http://localhost:3000`으로 하드코딩되어 있어, 배포하면 브라우저가 사용자 PC의 localhost로 요청함
+- 백엔드: `app.enableCors()`로 모든 도메인의 요청을 허용하고 있었음
+
+#### 해결 방법
+두 설정을 환경변수로 분리하고, 로컬에서는 기존처럼 동작하도록 기본값을 둠.
+
+```ts
+// Frontend
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+
+// Backend (main.ts)
+app.enableCors({
+  origin: process.env.CLIENT_URL ?? 'http://localhost:3001',
+});
+```
+
+#### 배운 점
+- Next.js는 `NEXT_PUBLIC_` 접두사가 붙은 환경변수만 브라우저 코드에 포함하며, 값이 **빌드 시점에 코드에 삽입**됨. 따라서 값을 변경하면 재배포해야 반영됨
+- 환경별로 달라지는 값은 코드가 아닌 환경변수로 관리해야 같은 코드를 로컬·운영에서 그대로 사용할 수 있음
+- CORS origin은 끝에 `/`가 붙으면 일치하지 않으므로 정확한 도메인으로 지정해야 함
+
+ <br>
  
 ## 한계 및 개선 방향
  
@@ -691,6 +786,8 @@ async delete(id: number, userId: number) {
 - Todo API 입력을 DTO + class-validator로 통일 (트러블슈팅 8, 9번)
 - `PATCH /todo`(body에 id)를 `PATCH /todo/:id`로, 완료 토글은 `PATCH /todo/:id/completed`로 분리해 REST 경로 정리
 - Refresh Token 도입으로 access token 만료 시간 단축 및 재로그인 부담 완화
+- 프론트 로그인 연동 후 운영 반영: 운영 DB에 users 테이블과 `todo.user_id`를 추가해야 하며, 기존 Todo에 소유자가 없어 NOT NULL 제약을 바로 걸 수 없음. TypeORM 마이그레이션으로 스키마 변경 이력을 관리할 예정
+- 무료 서버 콜드 스타트(약 1분)로 첫 접속이 느린 문제
   
  <br>
   
@@ -737,6 +834,13 @@ JWT_SECRET=<임의의 긴 문자열>
  
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+프론트엔드는 별도 설정 없이 `http://localhost:3000`의 API 서버에 연결됩니다.
+다른 주소를 사용하려면 `todo-client-next/.env.local`에 아래 값을 지정합니다.
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 
 ### 4. 실행
