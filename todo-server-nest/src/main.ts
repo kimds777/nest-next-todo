@@ -11,7 +11,9 @@ async function bootstrap() {
   initializeTransactionalContext();
 
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
+  app.enableCors({
+    origin: process.env.CLIENT_URL ?? 'http://localhost:3001',
+  });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
   const dataSource = app.get(DataSource);
